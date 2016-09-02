@@ -1,0 +1,478 @@
+* Prelude
+#+BEGIN_SRC elisp
+(define-minor-mode org-presentation-mode
+  "Toggle org presentation mode."
+  :init-value nil
+  :lighter: " P"
+  :group 'org-pres)
+
+(defvar org-presentation-mode-map
+  (let ((map (make-sparse-keymap)))
+    (define-key map (kbd "<prior> <prior>") 'org-presentation-prev)
+    (define-key map (kbd "<next> <next>") 'org-presentation-next)
+    (define-key map (kbd "<prior> <next> <next>") (Λ (org-next-block 1)
+                                                     (recenter-top-bottom 0)
+                                                     (message "Evaluating...")
+                                                     (org-ctrl-c-ctrl-c)
+                                                     (message "done!")
+                                                     (org-display-inline-images)))
+    (define-key map (kbd "<next> <prior> <prior>") 'org-previous-block)
+    (define-key map (kbd "q") (Λ (org-presentation-mode -1)
+                                 (text-scale-set 0)))
+    map))
+
+(defun org-presentation-next (arg)
+  (interactive "p")
+  (progn
+    (widen)
+    (org-next-visible-heading arg)
+    (org-narrow-to-subtree)))
+
+(defun org-presentation-prev (arg)
+  (interactive "p")
+  (progn
+    (widen)
+    (org-previous-visible-heading arg)
+    (org-narrow-to-subtree)))
+
+(flyspell-mode nil)
+(org-babel-remove-result-one-or-many '(4))
+(org-cycle '(64))
+(setq org-confirm-babel-evaluate nil)
+(text-scale-set 7)
+(org-display-inline-images)
+(blink-cursor-mode -1)
+(org-presentation-mode)
+#+END_SRC
+
+#+RESULTS:
+: t
+
+
+* Welcome at Scala User Group Düsseldorf:
+#+BEGIN_SRC elisp
+(play-sound-file-async "sounds/intro.mp3")
+(sit-for 5.5)
+(play-sound-file-async "sounds/intro2.mp3")
+(shell-command-to-string "figlet -f slant -w 70 -c -k \"Applying FP Patterns\"")
+#+END_SRC
+
+#+RESULTS:
+#+begin_example
+     ___                   __        _                  ______ ____ 
+    /   |   ____   ____   / /__  __ (_)____   ____ _   / ____// __ \
+   / /| |  / __ \ / __ \ / // / / // // __ \ / __ `/  / /_   / /_/ /
+  / ___ | / /_/ // /_/ // // /_/ // // / / // /_/ /  / __/  / ____/ 
+ /_/  |_|/ .___// .___//_/ \__, //_//_/ /_/ \__, /  /_/    /_/      
+        /_/    /_/        /____/           /____/                   
+             ____          __   __                          
+            / __ \ ____ _ / /_ / /_ ___   _____ ____   _____
+           / /_/ // __ `// __// __// _ \ / ___// __ \ / ___/
+          / ____// /_/ // /_ / /_ /  __// /   / / / /(__  ) 
+         /_/     \__,_/ \__/ \__/ \___//_/   /_/ /_//____/  
+                                                            
+#+end_example
+
+
+* Introduction (Why are we even here)
+
+- Functional Programming is getting more and more momentum
+- There exist many useful patterns from FP
+- Today: Two Patterns from FP
+
+1) Monoids
+2) Functional Error Handling
+* But before we start some basic knowledge:
+
+-> Who knows about
+
+ -> free adjoint functors?
+ -> star-autonomous categories?
+ -> geometric morphisms?
+
+* Functional Programming != scary
+
+Good! You don't need them anyway.
+
+                              
+                             ¯\_(ツ)_/¯
+
+* Some technicality before we start
+
+#+BEGIN_SRC scala
+import scala.concurrent._
+import scala.concurrent.duration._
+import scala.concurrent.ExecutionContext.Implicits.global
+import cats._, cats.kernel._, cats.data._, cats.implicits._, cats.syntax.all._
+import scala.util.Try
+#+END_SRC
+
+#+RESULTS:
+: import scala.concurrent._
+: import scala.concurrent.duration._
+: import scala.concurrent.ExecutionContext.Implicits.global
+: import cats._
+: import cats.kernel._
+: import cats.data._
+: import cats.implicits._
+: import cats.syntax.all._
+: import scala.util.Try
+
+
+* We will use 'cats'
+
+#+BEGIN_QUOTE
+Lightweight, modular, and extensible library for functional programming.
+#+END_QUOTE
+
+ - 0.7.0 currently released
+ - Github: https://github.com/typelevel/cats
+ - Guide: http://typelevel.org/cats/
+ - Scaladoc: http://typelevel.org/cats/api/#package
+
+* Plan for today
+
+1) Write composable Spark Programs
+2) Error handling, the functional way
+
+- repository: http://github.com/markus1189/fp-with-cats
+
+* Combining stuff (Monoid)
+
+Can you spot a pattern here?
+
+#+BEGIN_SRC scala
+val add = (0       + 1      )  + 5
+val mul = (1       * 2      )  * 5
+val cat = (List() ++ List(1)) ++ List(2,3)
+#+END_SRC
+
+
+* Abstracting with Monoids
+
+#+BEGIN_SRC scala
+def empty1: Int       = 0
+def empty2: Int       = 1
+def empty3: List[Int] = List()
+
+val add = (empty1 |+| 1      ) |+| 5
+val mul = (empty2 |+| 2      ) |+| 5
+val mul = (empty3 |+| List(1)) |+| List(2,3)
+#+END_SRC
+
+* Definition of Monoids
+
+The Monoid type class:
+#+BEGIN_SRC scala
+trait Monoid[A] {
+  def empty: A
+  def combine(x: A, y: A): A
+}
+
+implicit class MonoidOps[A](val self: A) {
+  // Normally |+| but that would clash
+  def +|+(other: A)(implicit M: Monoid[A]) = 
+    M.combine(self,other)
+}
+#+END_SRC
+
+#+RESULTS:
+: defined trait Monoid
+: defined class MonoidOps
+
+
+* Monoid Rules
+
+Implementations have to obey some rules:
+
+#+BEGIN_EXAMPLE
+1) empty |+| x === x                        (Left identity)
+
+2) x |+| empty === x                        (Right identity)
+
+3) (x |+| y) |+| z === x |+| (y |+| z)      (Associativity)
+#+END_EXAMPLE
+
+* Let's define some Monoids
+
+1) Addition
+2) Multiplication
+3) List concatenation
+
+#+BEGIN_SRC scala
+implicit val intPlus: Monoid[Int] = new Monoid[Int] {
+  override def empty: Int = 0
+  override def combine(x: Int, y: Int): Int = x + y
+}
+
+1 +|+ 41
+#+END_SRC
+
+#+RESULTS:
+: intPlus: Monoid[Int] = $anon$1@372ea7fa
+: res20: Int = 42
+
+#+BEGIN_SRC scala
+implicit val doubleMul: Monoid[Double] = new Monoid[Double] {
+  override def empty: Double = 1
+  override def combine(x: Double, y: Double): Double = x * y
+}
+
+8.0 +|+ 5.25
+#+END_SRC
+
+#+RESULTS:
+: doubleMul: Monoid[Double] = $anon$1@5232be9b
+: res26: Double = 42.0
+
+#+BEGIN_SRC scala
+implicit def listConcat[A]: Monoid[List[A]] = new Monoid[List[A]] {
+  override def empty: List[A] = List()
+  override def combine(x: List[A], y: List[A]): List[A] = x ++ y
+}
+
+List(1,2,3) +|+ List(4,5,6)
+#+END_SRC
+
+#+RESULTS:
+: listConcat: [A]=> Monoid[List[A]]
+: res28: List[Int] = List(1, 2, 3, 4, 5, 6)
+
+
+* Monoids can be combined
+
+We can build monoids from monoids:
+
+#+BEGIN_SRC scala
+implicit def option[A:Monoid] = new Monoid[Option[A]] {
+  def empty = None
+
+  def combine(x: Option[A], y: Option[A]) = (x,y) match {
+    case (Some(xx),Some(yy)) => Some(xx +|+ yy)
+    case (Some(xx),None) => Some(xx)
+    case (None,Some(yy)) => Some(yy)
+    case (None,None) => None
+  }
+}
+#+END_SRC
+
+#+RESULTS:
+: option: [A](implicit evidence$1: Monoid[A])Monoid[Option[A]]{def empty: None.type}
+
+#+BEGIN_SRC scala
+val none: Option[Int] = None
+Option(2) +|+ Option(40)
+Option(8.0) +|+ Option(5.25)
+Option(List(1,2,3)) +|+ Option(List(0))
+Option(1) +|+ none
+none +|+ Option(42)
+none +|+ none
+#+END_SRC
+
+
+* Monoids everywhere
+
+#+BEGIN_SRC scala
+1 |+| 2
+Await.result(Future("a") |+| Future("b"), Duration.Inf)
+Option("Hello, ") |+| Option("World")
+Map(1->List('a','b')) |+| Map(1->List('c'),2->List())
+#+END_SRC
+
+#+RESULTS:
+: res15: Int = 3
+: res16: String = ab
+: res17: Option[String] = Some(Hello, World)
+: res18: Map[Int,List[Char]] = Map(1 -> List(a, b, c), 2 -> List())
+
+Also:
+
+  - ~Order[A]~
+  - ~Either[A,B]~ if Monoid[B]
+  - ~A => B~      if Monoid[B]
+  - ~Map[A,B]~    if Monoid[B]
+  - ~(A,B)~       if Monoid[A] and Monoid[B]
+
+* Functions for monoids
+
+- cats also defines many other functions for monoids
+  - specialized ~fold~ with start and combine function
+  - Validated (error accumulation)
+  - and many more
+
+- at this point you might be thinking:
+
+* Monoids for the real world
+
+#+BEGIN_SRC sh :results raw
+echo "[[file:pics/skeptical.jpg]]"
+#+END_SRC
+
+
+* Apache Spark
+
+Task: calculate statistics with Apache Spark
+
+  a) number of words
+  b) word count per word
+  c) average word length
+  +) make it easy to extend
+
+Easy? Only do *one* traversal over the input
+
+(back to cats)
+
+
+
+
+
+
+
+
+
+
+* Several hours later...
+
+Maybe add the normal version without monoids here
+
+* Apache Spark - Using Monoids
+
+#+BEGIN_SRC scala
+// Monoid for Map, Option & Integer addition
+
+def step(word: String) = (1,Map(word->1),word.length)
+
+val data = sc.textFile(file).flatMap(_.split("""\s+""")).map(step)
+
+val z = Monoid.empty[(Int,Map[String,Int],Int)]
+
+val (words,wordCount,chars) = data.fold(z)(_ |+| _)
+val averageWordLength = chars / words
+#+END_SRC
+
+#+BEGIN_EXAMPLE
+1) "FP in cats in cologne"
+
+2) List("FP","in","cats","in","cologne")
+
+3) List((1,Map("FP"->1),2),(1,Map("in"->1),2),
+        (1,Map("cats"->1),4),(1,Map("in"->1),2), ...)
+
+4) (5,Map("FP"->1,"in"->2,"cats"->1,...),17)
+#+END_EXAMPLE
+
+Remember the requirement: /easy/ extension!
+Let's also calculate maximum word length
+* Apache Spark - Extension: Max word length
+
+#+BEGIN_SRC scala
+// define Monoid instance for Max
+
+def step(word: String) =
+  (1,Map(word->1),word.length,Option(Max(word.length)))
+
+val data = sc.textFile(file).flatMap(_.split("""\s+""")).map(step)
+
+val z = Monoid.empty[(Int,Map[String,Int],Int,Option[Max[Int]])]
+
+val (words,wordCount,chars,max) = data.fold(z)(_ |+| _)
+val averageWordLength = chars / words
+#+END_SRC
+
+* Exercise for later:
+
+define the max/min monoid
+define the option monoid
+omit word count for "a","an","the"
+
+* From Apache Spark back to cats
+
+#+BEGIN_SRC sh :results raw
+echo "[[file:pics/cat_appears2.jpg]]"
+#+END_SRC
+
+ [[https://www.flickr.com/photos/wapiko57/6485554303/in/photolist-aT7akM-5rjoU-aqXABF-5EY2CH-Ei9g6L-7CJLZB-dw5ubE-4WU9CM-9c8DxY-mJacdB-7CNDjJ-DLYJJ4-4UqYjw-queHDF-DBBweh-4WHPqW-fHFKMq-e4LY68-Deyhdx-Deyhzz-6j8y5z-apVto4-dTJt5S-nPofCV-5k9icV-5RWdiH-dGc58F-dGhsHf-6hTmrR-9x75ih-aVEwEH-pGyf51-g8fzC-c2Qzeo-d55Dz3-hDVqdM-ehMkwT-bErmXo-apY92G-apVrgH-cpQvZ-5kCxD9-95uTJS-9Kwe3v-j17GZ-njVWkm-Deyemv-apVuSt-6jcJZW-9eDEkS][source]]
+
+* Apache Spark Section Done
+
+?QUESTIONS?
+
+* Functional Error Handling
+
+- traditional error handling from java:
+  try/catch/finally
+- slightly better in standard Scala: Try and Either
+- but to really get the benefits, use cats/scalaz    
+
+* Example: Catching Pokemons
+
+* Pitfalls
+
+- there are some subtle issues when starting with cats
+- we are going to look at some pitfalls
+- some are IntelliJ related, other specific to Scala
+
+* Cats can't find the instance
+
+#+BEGIN_SRC scala
+import cats.std.future._
+import cats.Functor
+import scala.concurrent.Future
+Functor[Future].map(Future.successful("42"))(_.toInt)
+#+END_SRC
+
+#+BEGIN_EXAMPLE
+Error:(6, 9) could not find implicit value for parameter instance: cats.Functor[scala.concurrent.Future]
+Functor[Future].map(Future.successful("42"))(_.toInt)
+       ^
+#+END_EXAMPLE
+
+* Use the source, Luke
+
+#+BEGIN_SRC scala
+// in cats.std.future:
+trait FutureInstances {
+  implicit def catsStdInstancesForFuture(implicit ec: ExecutionContext) = ???
+}
+#+END_SRC
+
+#+BEGIN_SRC scala
+import cats.std.future._
+import cats.Functor
+import scala.concurrent.Future
+import scala.concurrent.ExecutionContext.Implicits.global
+Functor[Future].map(Future.successful("42"))(_.toInt)
+#+END_SRC
+
+* IntelliJ not smart enough
+
+#+BEGIN_SRC scala
+val either: Either[String,Future[Int]] = Right(Future(1))
+either.sequenceU
+#+END_SRC
+
+* More verbosity to the rescue
+
+#+BEGIN_SRC scala
+val either = Right(Future(1))
+Traverse[λ[A=>Either[String,A]]].sequence(either)
+#+END_SRC
+
+* The end
+
+#+BEGIN_SRC elisp
+(play-sound-file-async "sounds/intro.mp3")
+(sit-for 5.5)
+(play-sound-file-async "sounds/intro2.mp3")
+(shell-command-to-string "figlet -d fonts -f doom -w 70 -c -k \"The End\"")
+#+END_SRC
+
+
+* Questions
+#+BEGIN_SRC sh :results raw
+echo "[[file:pics/questions.png]]"
+#+END_SRC
+
+
+* Local words
+#  LocalWords:  adjoint functors monoids morphisms
