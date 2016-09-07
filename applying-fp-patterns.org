@@ -410,7 +410,58 @@ echo "[[file:pics/cat_appears2.jpg]]"
 - slightly better in standard Scala: Try and Either
 - but to really get the benefits, use cats/scalaz
 
-* Example: Catching Pokemons
+* Example: Pokémons
+
+#+BEGIN_SRC scala
+case class Pokemon(id: Int, typ: Type)
+sealed trait Type extends Product with Serializable
+case object Fire extends Type
+case object Water extends Type
+case object Grass extends Type
+
+class PokemonOwner(name: String)
+
+class PokemonRepository {
+  def find(id: Int): Future[Pokemon]
+  def save(p: Pokemon): Future[Unit]
+}
+
+def transfer(from: PokemonOwner, to: PokemonOwner): Future[Unit]
+#+END_SRC
+
+* Problems:
+
+- Does ~transfer~ throw an exception?
+- What about ~find~ / ~save~ etc?
+- What *kind* of errors can occur?
+
+* More Functional Way
+
+#+BEGIN_SRC scala
+case class Pokemon(id: Int, typ: Type)
+sealed trait Type extends Product with Serializable
+case object Fire extends Type
+case object Water extends Type
+case object Grass extends Type
+
+class PokemonOwner(name: String)
+
+class PokemonRepository {
+  def find(id: Int, owner: PokemonOwner): Future[Xor[DriverException,Pokemon]]
+  def delete(id: Int, owner: PokemonOwner): Future[Xor[DriverException,Unit]]
+  def save(p: Pokemon, owner: PokemonOwner): Future[Xor[DriverException,Unit]]
+}
+
+def transfer(
+  id: Int,
+  from: PokemonOwner,
+  to: PokemonOwner
+): Future[Xor[DriverException,Unit]] = for {
+  p <- repo.find(id, from)
+  _ <- repo.delete(id, from)
+  _ <- repo.save(p, to)
+} yield ()
+#+END_SRC
 
 * Pitfalls
 
