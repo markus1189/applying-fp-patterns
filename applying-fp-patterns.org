@@ -48,7 +48,6 @@
 #+RESULTS:
 : t
 
-
 * Welcome at Scala User Group Düsseldorf:
 #+BEGIN_SRC elisp
 (play-sound-file-async "sounds/intro.mp3")
@@ -56,23 +55,6 @@
 (play-sound-file-async "sounds/intro2.mp3")
 (shell-command-to-string "figlet -f slant -w 70 -c -k \"Applying FP Patterns\"")
 #+END_SRC
-
-#+RESULTS:
-#+begin_example
-     ___                   __        _                  ______ ____
-    /   |   ____   ____   / /__  __ (_)____   ____ _   / ____// __ \
-   / /| |  / __ \ / __ \ / // / / // // __ \ / __ `/  / /_   / /_/ /
-  / ___ | / /_/ // /_/ // // /_/ // // / / // /_/ /  / __/  / ____/
- /_/  |_|/ .___// .___//_/ \__, //_//_/ /_/ \__, /  /_/    /_/
-        /_/    /_/        /____/           /____/
-             ____          __   __
-            / __ \ ____ _ / /_ / /_ ___   _____ ____   _____
-           / /_/ // __ `// __// __// _ \ / ___// __ \ / ___/
-          / ____// /_/ // /_ / /_ /  __// /   / / / /(__  )
-         /_/     \__,_/ \__/ \__/ \___//_/   /_/ /_//____/
-
-#+end_example
-
 
 * Introduction (Why are we even here)
 
@@ -98,9 +80,11 @@ Good! You don't need them anyway.
                              ¯\_(ツ)_/¯
 
 * What then is FP? (for _me_!)
+
 1) Composability
-2) Referential Transparency (immutability, limit side effects, etc.)
-3) Leverage the type system
+2) Leverage the type system
+3) Referential Transparency (immutability, limit side effects, etc.)
+
 * Some technicality before we start
 
 #+BEGIN_SRC scala
@@ -110,17 +94,6 @@ import scala.concurrent.ExecutionContext.Implicits.global
 import cats._, cats.kernel._, cats.data._, cats.implicits._, cats.syntax.all._
 import scala.util.Try
 #+END_SRC
-
-#+RESULTS:
-: import scala.concurrent._
-: import scala.concurrent.duration._
-: import scala.concurrent.ExecutionContext.Implicits.global
-: import cats._
-: import cats.kernel._
-: import cats.data._
-: import cats.implicits._
-: import cats.syntax.all._
-: import scala.util.Try
 
 * We will use 'cats'
 
@@ -140,8 +113,16 @@ Lightweight, modular, and extensible library for functional programming.
 
 - repository: http://github.com/markus1189/fp-with-cats
 
-* Combining Stuff (Monoid)
+* Composability - OO
 
+
+
+                           [[./pics/duplo.jpg]]
+
+* Composability - FP
+
+
+       [[./pics/lego.jpg]]
 
 * Combining stuff (Monoid)
 
@@ -152,7 +133,6 @@ val add = (0       + 1      )  + 5
 val mul = (1       * 2      )  * 5
 val cat = (List() ++ List(1)) ++ List(2,3)
 #+END_SRC
-
 
 * Abstracting with Monoids
 
@@ -182,10 +162,6 @@ implicit class MonoidOps[A](val self: A) {
 }
 #+END_SRC
 
-#+RESULTS:
-: defined trait Monoid
-: defined class MonoidOps
-
 
 * Monoid Rules
 
@@ -214,10 +190,6 @@ implicit val intPlus: Monoid[Int] = new Monoid[Int] {
 1 +|+ 41
 #+END_SRC
 
-#+RESULTS:
-: intPlus: Monoid[Int] = $anon$1@372ea7fa
-: res20: Int = 42
-
 #+BEGIN_SRC scala
 implicit val doubleMul: Monoid[Double] = new Monoid[Double] {
   override def empty: Double = 1
@@ -227,10 +199,6 @@ implicit val doubleMul: Monoid[Double] = new Monoid[Double] {
 8.0 +|+ 5.25
 #+END_SRC
 
-#+RESULTS:
-: doubleMul: Monoid[Double] = $anon$1@5232be9b
-: res26: Double = 42.0
-
 #+BEGIN_SRC scala
 implicit def listConcat[A]: Monoid[List[A]] = new Monoid[List[A]] {
   override def empty: List[A] = List()
@@ -239,11 +207,6 @@ implicit def listConcat[A]: Monoid[List[A]] = new Monoid[List[A]] {
 
 List(1,2,3) +|+ List(4,5,6)
 #+END_SRC
-
-#+RESULTS:
-: listConcat: [A]=> Monoid[List[A]]
-: res28: List[Int] = List(1, 2, 3, 4, 5, 6)
-
 
 * Monoids can be combined
 
@@ -262,9 +225,6 @@ implicit def option[A:Monoid] = new Monoid[Option[A]] {
 }
 #+END_SRC
 
-#+RESULTS:
-: option: [A](implicit evidence$1: Monoid[A])Monoid[Option[A]]{def empty: None.type}
-
 #+BEGIN_SRC scala
 val none: Option[Int] = None
 Option(2) +|+ Option(40)
@@ -275,7 +235,6 @@ none +|+ Option(42)
 none +|+ none
 #+END_SRC
 
-
 * Monoids everywhere
 
 #+BEGIN_SRC scala
@@ -284,12 +243,6 @@ Await.result(Future("a") |+| Future("b"), Duration.Inf)
 Option("Hello, ") |+| Option("World")
 Map(1->List('a','b')) |+| Map(1->List('c'),2->List())
 #+END_SRC
-
-#+RESULTS:
-: res15: Int = 3
-: res16: String = ab
-: res17: Option[String] = Some(Hello, World)
-: res18: Map[Int,List[Char]] = Map(1 -> List(a, b, c), 2 -> List())
 
 Also:
 
@@ -328,18 +281,9 @@ Easy? Only do *one* traversal over the input
 
 (back to cats)
 
-
-
-
-
-
-
-
-
-
 * Several hours later...
 
-Maybe add the normal version without monoids here
+TODO: Maybe add the normal version without monoids here
 
 * Apache Spark - Using Monoids
 
@@ -357,9 +301,9 @@ val averageWordLength = chars / words
 #+END_SRC
 
 #+BEGIN_EXAMPLE
-1) "FP in cats in cologne"
+1) "FP in cats in düsseldorf"
 
-2) List("FP","in","cats","in","cologne")
+2) List("FP","in","cats","in","düsseldorf")
 
 3) List((1,Map("FP"->1),2),(1,Map("in"->1),2),
         (1,Map("cats"->1),4),(1,Map("in"->1),2), ...)
@@ -387,17 +331,10 @@ val averageWordLength = chars / words
 
 * Exercise for later:
 
-define the max/min monoid
-define the option monoid
-omit word count for "a","an","the"
-
-* From Apache Spark back to cats
-
-#+BEGIN_SRC sh :results raw
-echo "[[file:pics/cat_appears2.jpg]]"
-#+END_SRC
-
- [[https://www.flickr.com/photos/wapiko57/6485554303/in/photolist-aT7akM-5rjoU-aqXABF-5EY2CH-Ei9g6L-7CJLZB-dw5ubE-4WU9CM-9c8DxY-mJacdB-7CNDjJ-DLYJJ4-4UqYjw-queHDF-DBBweh-4WHPqW-fHFKMq-e4LY68-Deyhdx-Deyhzz-6j8y5z-apVto4-dTJt5S-nPofCV-5k9icV-5RWdiH-dGc58F-dGhsHf-6hTmrR-9x75ih-aVEwEH-pGyf51-g8fzC-c2Qzeo-d55Dz3-hDVqdM-ehMkwT-bErmXo-apY92G-apVrgH-cpQvZ-5kCxD9-95uTJS-9Kwe3v-j17GZ-njVWkm-Deyemv-apVuSt-6jcJZW-9eDEkS][source]]
+1) define the max/min monoid
+2) define the option monoid
+3) omit word count for "a","an","the"
+4) hard: add a counter for words with even length
 
 * Apache Spark Section Done
 
@@ -407,6 +344,7 @@ echo "[[file:pics/cat_appears2.jpg]]"
 
 - traditional error handling from java:
   try/catch/finally
+- in FP, try to capture exceptions in the types
 - slightly better in standard Scala: Try and Either
 - but to really get the benefits, use cats/scalaz
 
@@ -423,6 +361,7 @@ class PokemonOwner(name: String)
 
 class PokemonRepository {
   def find(id: Int): Future[Pokemon]
+  def delete(id: Int, owner: PokemonOwner)
   def save(p: Pokemon): Future[Unit]
 }
 
@@ -456,63 +395,11 @@ def transfer(
   id: Int,
   from: PokemonOwner,
   to: PokemonOwner
-): Future[Xor[DriverException,Unit]] = for {
+): Future[Xor[Throwable,Unit]] = for {
   p <- repo.find(id, from)
   _ <- repo.delete(id, from)
   _ <- repo.save(p, to)
 } yield ()
-#+END_SRC
-
-* Pitfalls
-
-- there are some subtle issues when starting with cats
-- we are going to look at some pitfalls
-- some are IntelliJ related, other specific to Scala
-
-* Cats can't find the instance
-
-#+BEGIN_SRC scala
-import cats.std.future._
-import cats.Functor
-import scala.concurrent.Future
-Functor[Future].map(Future.successful("42"))(_.toInt)
-#+END_SRC
-
-#+BEGIN_EXAMPLE
-Error:(6, 9) could not find implicit value for parameter instance: cats.Functor[scala.concurrent.Future]
-Functor[Future].map(Future.successful("42"))(_.toInt)
-       ^
-#+END_EXAMPLE
-
-* Use the source, Luke
-
-#+BEGIN_SRC scala
-// in cats.std.future:
-trait FutureInstances {
-  implicit def catsStdInstancesForFuture(implicit ec: ExecutionContext) = ???
-}
-#+END_SRC
-
-#+BEGIN_SRC scala
-import cats.std.future._
-import cats.Functor
-import scala.concurrent.Future
-import scala.concurrent.ExecutionContext.Implicits.global
-Functor[Future].map(Future.successful("42"))(_.toInt)
-#+END_SRC
-
-* IntelliJ not smart enough
-
-#+BEGIN_SRC scala
-val either: Either[String,Future[Int]] = Right(Future(1))
-either.sequenceU
-#+END_SRC
-
-* More verbosity to the rescue
-
-#+BEGIN_SRC scala
-val either = Right(Future(1))
-Traverse[λ[A=>Either[String,A]]].sequence(either)
 #+END_SRC
 
 * The end
