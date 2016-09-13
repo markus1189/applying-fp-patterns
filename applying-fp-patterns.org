@@ -95,6 +95,7 @@ import cats._, cats.kernel._, cats.data._, cats.implicits._, cats.syntax.all._
 import scala.util.Try
 #+END_SRC
 
+
 * We will use 'cats'
 
 #+BEGIN_QUOTE
@@ -134,6 +135,7 @@ val mul = (1       * 2      )  * 5
 val cat = (List() ++ List(1)) ++ List(2,3)
 #+END_SRC
 
+
 * Definition of Monoids
 
 The Monoid type class:
@@ -149,6 +151,7 @@ implicit class MonoidOps[A](val self: A) {
     M.combine(self,other)
 }
 #+END_SRC
+
 
 * Abstracting with Monoids
 
@@ -162,6 +165,7 @@ val mul = (empty2 |+| 2      ) |+| 5
 val mul = (empty3 |+| List(1)) |+| List(2,3)
 #+END_SRC
 
+
 * Definition of Monoids
 
 The Monoid type class:
@@ -177,6 +181,7 @@ implicit class MonoidOps[A](val self: A) {
     M.combine(self,other)
 }
 #+END_SRC
+
 
 * Monoid Rules
 
@@ -222,6 +227,7 @@ implicit def listConcat[A]: Monoid[List[A]] = new Monoid[List[A]] {
 
 List(1,2,3) +|+ List(4,5,6)
 #+END_SRC
+
 
 * Monoids can be combined
 
@@ -282,6 +288,7 @@ Also:
 echo "[[file:pics/skeptical.jpg]]"
 #+END_SRC
 
+
 * Apache Spark
 
 Task: calculate statistics with Apache Spark
@@ -295,9 +302,6 @@ Easy? Only do *one* traversal over the input
 
 (back to cats)
 
-* Several hours later...
-
-TODO: Maybe add the normal version without monoids here
 
 * Apache Spark - Using Monoids
 
@@ -350,8 +354,14 @@ val averageWordLength = chars / words
 4) hard: ignore stopwords ("a","an","the",...)
 
 * Apache Spark Section Done
+                   [[./pics/questions1.jpg]]
 
-?QUESTIONS?
+* Part Two: Catch'em All
+
+
+
+
+                   [[./pics/pokemons.jpg]]
 
 * Types of errors
 
@@ -395,23 +405,24 @@ you don't want to communicate each of them to callers
 * Example: Pokémons
 
 #+BEGIN_SRC scala
-case class Pokemon(id: Int, typ: Type, name: String)
-object Pokemon {
-  case class Id(value: Int) extends AnyVal
-}
 sealed trait Type extends Product with Serializable
 case object Fire extends Type
 case object Water extends Type
 // ...
 
+case class Pokemon(id: Int, typ: Type, name: String)
+object Pokemon {
+  case class Id(value: Int)
+}
+
 class PokemonOwner(name: String)
 object PokemonOwner {
-  case class Id(value: Int) extends AnyVal
+  case class Id(value: Int)
 }
 #+END_SRC
 
 #+BEGIN_SRC scala
-class PokemonRepository {
+trait PokemonRepository {
   def find(id: PokemonOwner.Id): Future[PokemonOwner]
   def find(id: Pokemon.Id): Future[Pokemon]
   def delete(id: Pokemon.Id, owner: PokemonOwner.Id)
@@ -419,13 +430,22 @@ class PokemonRepository {
 }
 #+END_SRC
 
+
+* Transferring Pokémons
+
+
+
+                           [[./pics/transfer.png]]
+
+* Transferring Pokémons
+
 #+BEGIN_SRC scala
 def transfer(from: PokemonOwner.Id,
              to: PokemonOwner.Id)(
              id: Pokemon.Id): Future[Unit] = for {
-  fromOwner <- repo.find(from) // --+
-  toOwner <- repo.find(to)     //   |=> Independent
-  pokemon <- repo.find(id)     // --+
+  fromOwner <- repo.find(from)
+  toOwner <- repo.find(to)
+  pokemon <- repo.find(id)
   _ <- delete(id, from)
   _ <- save(pokemon, to)
 } yield {
@@ -436,32 +456,100 @@ def transfer(from: PokemonOwner.Id,
 
 * Problems:
 
-- Does ~transfer~ throw an exception?
-- What about ~find~ / ~save~ etc?
+- Does ~transfer~ throw an exception? (~find~? ~save~?)
 - What *kind* of errors can occur?
-- (What happens if one occurs in different steps?)
+- Has the error been handled?
 - Which errors should be handled vs escalated
 - Common thing for Java: one exception fits all
 
-* More Functional Way
+=> What happens if one occurs in different steps?
+
+* What if
+
+
+
+
+                           [[./pics/transfer-fails.png]]
+
+
+* The Functional Way
+
+- FP allows has to have our cake and it eat too
+- use a disjunction (sum-type) to model success/failure
+- use a (nested) ADT to represent errors
+- it is obvious what errors can appear and whether it was handled
+
+* The Error ADT
 
 #+BEGIN_SRC scala
-class PokemonRepository {
-  def find(id: Int, owner: PokemonOwner): Future[Xor[DriverException,Pokemon]]
-  def delete(id: Int, owner: PokemonOwner): Future[Xor[DriverException,Unit]]
-  def save(p: Pokemon, owner: PokemonOwner): Future[Xor[DriverException,Unit]]
-}
+sealed trait DomainError
+case class OwnerNotFound(id: PokemonOwner.Id) extends DomainError
+case class PokemonNotFound(id: Pokemon.Id) extends DomainError
 
-def transfer(
-  id: Int,
-  from: PokemonOwner,
-  to: PokemonOwner
-): Future[Xor[Throwable,Unit]] = for {
-  p <- repo.find(id, from)
-  _ <- repo.delete(id, from)
-  _ <- repo.save(p, to)
-} yield ()
+sealed trait ExternalError
+case class FindOwnerFailed(id: PokemonOwner.Id, e: Throwable) extends ExternalError
+case class FindPokemonFailed(id: Pokemon.Id, e: Throwable) extends ExternalError
+case class DeletionFailed(id: Pokemon.Id, owner: PokemonOwner.Id, e: Throwable) extends ExternalError
+case class SavingFailed(id: Pokemon, owner: PokemonOwner.Id, e: Throwable) extends ExternalError
+
+sealed trait TxError extends Product with Serializable
+case class Domain(e: DomainError) extends TxError
+case class External(e: ExternalError) extends TxError
 #+END_SRC
+
+#+BEGIN_SRC scala
+trait PokemonRepository {
+  def find(id: PokemonOwner.Id): Future[Xor[DriverException,Option[PokemonOwner]]]
+  def find(id: Pokemon.Id): Future[Xor[DriverException,Option[Pokemon]]]
+  def delete(id: Pokemon.Id, owner: PokemonOwner.Id): Future[Xor[DriverException,Unit]]
+  def save(p: Pokemon, owner: PokemonOwner.Id): Future[Xor[DriverException,Unit]]
+}
+#+END_SRC
+
+#+BEGIN_SRC scala
+def transfer(
+  from: PokemonOwner.Id,
+  to: PokemonOwner.Id)(
+  id: Pokemon.Id): Future[Xor[TxError,Unit]] = (for {
+  fromOwner <- safeFind(from)
+  toOwner <- safeFind(to)
+  pokemon <- safeFind(id)
+  _ <- safeDelete(id,from)
+  _ <- safeSave(pokemon, to)
+} yield {
+  log.info(
+    s"Transferred pokemon ${pokemon.name}: ${fromOwner.name} -> ${toOwner.name}")
+}).value
+#+END_SRC
+
+* Full control over error handling at the very boundary
+
+#+BEGIN_SRC scala
+val o1 = PokemonOwner.Id(1)
+val o2 = PokemonOwner.Id(2)
+val p = Pokemon.Id(3)
+
+transfer(o1,o2)(p) map {
+  case Xor.Right(()) => """\o/"""
+  case Xor.Left(Domain(domain)) => domain match {
+    case OwnerNotFound(id) =>   // display error
+    case PokemonNotFound(id) => // display error
+  }
+  case Xor.Left(External(external)) => external match {
+    case SavingFailed(id, owner, e: QueryTimedOutException) => // UH OH! Retry?
+    case SavingFailed(_,_,e) => // log error and display generic error
+    case _ => // some generic handling
+  }
+}
+#+END_SRC
+
+
+* Why not Either or Try
+
+- ~Either~ is currently not right-biased
+- ~Try~ is useless and not even a monad
+- ~Xor~ (cats) or ~\/~ (scalaz) is better
+- soon: right biased ~Either~ in Scala (replaces ~Xor~)
 
 * The end
 
