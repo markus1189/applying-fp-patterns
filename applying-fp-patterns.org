@@ -48,6 +48,7 @@
 #+RESULTS:
 : t
 
+
 * Welcome at Scala User Group Düsseldorf:
 #+BEGIN_SRC elisp
 (play-sound-file-async "sounds/intro.mp3")
@@ -55,6 +56,7 @@
 (play-sound-file-async "sounds/intro2.mp3")
 (shell-command-to-string "figlet -f slant -w 70 -c -k \"Applying FP Patterns\"")
 #+END_SRC
+
 
 * Introduction (Why are we even here)
 
@@ -287,6 +289,9 @@ Also:
 #+BEGIN_SRC sh :results raw
 echo "[[file:pics/skeptical.jpg]]"
 #+END_SRC
+
+#+RESULTS:
+[[file:pics/skeptical.jpg]]
 
 
 * Apache Spark
@@ -565,6 +570,9 @@ transfer(o1,o2)(p) map {
 #+BEGIN_SRC sh :results raw
 echo "[[file:pics/questions.png]]"
 #+END_SRC
+
+#+RESULTS:
+[[file:pics/questions.png]]
 
 
 * Local words
