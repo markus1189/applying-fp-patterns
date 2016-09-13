@@ -119,12 +119,13 @@ This talk uses cats, but in theory any FP library works.
 
 * Composability - OO
 
+OO is like DUPLO: /seems/ composable
 
-
-                           [[./pics/duplo.jpg]]
+                            [[./pics/duplo.jpg]]
 
 * Composability - FP
 
+FP is like LEGO: small parts that can be /reused/
 
        [[./pics/lego.jpg]]
 
