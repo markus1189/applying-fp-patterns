@@ -109,12 +109,13 @@ Lightweight, modular, and extensible library for functional programming.
  - Guide: http://typelevel.org/cats/
  - Scaladoc: http://typelevel.org/cats/api/#package
 
+This talk uses cats, but in theory any FP library works.
 * Plan for today
 
 1) Write composable Spark Programs
 2) Error handling, the functional way
 
-- repository: http://github.com/markus1189/fp-with-cats
+- repository: https://github.com/markus1189/applying-fp-patterns
 
 * Composability - OO
 
@@ -290,9 +291,6 @@ Also:
 echo "[[file:pics/skeptical.jpg]]"
 #+END_SRC
 
-#+RESULTS:
-[[file:pics/skeptical.jpg]]
-
 
 * Apache Spark
 
@@ -356,7 +354,7 @@ val averageWordLength = chars / words
 
 1) define the max/min monoid
 2) define the option monoid
-4) hard: ignore stopwords ("a","an","the",...)
+3) hard: ignore stopwords ("a","an","the",...)
 
 * Apache Spark Section Done
                    [[./pics/questions1.jpg]]
@@ -570,9 +568,6 @@ transfer(o1,o2)(p) map {
 #+BEGIN_SRC sh :results raw
 echo "[[file:pics/questions.png]]"
 #+END_SRC
-
-#+RESULTS:
-[[file:pics/questions.png]]
 
 
 * Local words
