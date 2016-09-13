@@ -35,7 +35,7 @@
     (org-previous-visible-heading arg)
     (org-narrow-to-subtree)))
 
-(flyspell-mode nil)
+(flyspell-mode -1)
 (org-babel-remove-result-one-or-many '(4))
 (org-cycle '(64))
 (setq org-confirm-babel-evaluate nil)
