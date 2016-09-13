@@ -39,7 +39,7 @@
 (org-babel-remove-result-one-or-many '(4))
 (org-cycle '(64))
 (setq org-confirm-babel-evaluate nil)
-(text-scale-set 7)
+(text-scale-set 6)
 (org-display-inline-images)
 (blink-cursor-mode -1)
 (org-presentation-mode)
@@ -134,6 +134,22 @@ val mul = (1       * 2      )  * 5
 val cat = (List() ++ List(1)) ++ List(2,3)
 #+END_SRC
 
+* Definition of Monoids
+
+The Monoid type class:
+#+BEGIN_SRC scala
+trait Monoid[A] {
+  def empty: A
+  def combine(x: A, y: A): A
+}
+
+implicit class MonoidOps[A](val self: A) {
+  // Normally |+| but that would clash
+  def +|+(other: A)(implicit M: Monoid[A]) =
+    M.combine(self,other)
+}
+#+END_SRC
+
 * Abstracting with Monoids
 
 #+BEGIN_SRC scala
@@ -161,7 +177,6 @@ implicit class MonoidOps[A](val self: A) {
     M.combine(self,other)
 }
 #+END_SRC
-
 
 * Monoid Rules
 
@@ -254,7 +269,7 @@ Also:
 
 * Functions for monoids
 
-- cats also defines many other functions for monoids
+- cats (and scalaz) also defines many other functions for monoids
   - specialized ~fold~ with start and combine function
   - Validated (error accumulation)
   - and many more
@@ -266,7 +281,6 @@ Also:
 #+BEGIN_SRC sh :results raw
 echo "[[file:pics/skeptical.jpg]]"
 #+END_SRC
-
 
 * Apache Spark
 
@@ -333,17 +347,47 @@ val averageWordLength = chars / words
 
 1) define the max/min monoid
 2) define the option monoid
-3) omit word count for "a","an","the"
-4) hard: add a counter for words with even length
+4) hard: ignore stopwords ("a","an","the",...)
 
 * Apache Spark Section Done
 
 ?QUESTIONS?
 
+* Types of errors
+
+Typically, there are two types of errors:
+
+1) domain errors
+2) external errors
+
+For 1) callers are expected to deal with them and should typically be
+able to perform mitigation
+
+For 2) often the only thing you can do is graceful degradation,
+you don't want to communicate each of them to callers
+
+* Handling Errors in Java
+
+- Java:
+  - unchecked exception
+  - checked exceptions
+- Why?
+  - checked exceptions communicate + compiler help
+  - caller does not have to check return value
+    - ~if (result == null) { ... }~
+  - compiler help is good! (?)
+  - but checked exceptions are broken (!)
+* Handling Errors
+
+- Scala:
+  - *unchecked* exceptions as in Java
+  - *no* checked exceptions
+  - but: expressive type system
+
 * Functional Error Handling
 
 - traditional error handling from java:
-  try/catch/finally
+  try/catch/finally, also supported in Scala
 - in FP, try to capture exceptions in the types
 - slightly better in standard Scala: Try and Either
 - but to really get the benefits, use cats/scalaz
@@ -351,21 +395,43 @@ val averageWordLength = chars / words
 * Example: Pokémons
 
 #+BEGIN_SRC scala
-case class Pokemon(id: Int, typ: Type)
+case class Pokemon(id: Int, typ: Type, name: String)
+object Pokemon {
+  case class Id(value: Int) extends AnyVal
+}
 sealed trait Type extends Product with Serializable
 case object Fire extends Type
 case object Water extends Type
-case object Grass extends Type
+// ...
 
 class PokemonOwner(name: String)
-
-class PokemonRepository {
-  def find(id: Int): Future[Pokemon]
-  def delete(id: Int, owner: PokemonOwner)
-  def save(p: Pokemon): Future[Unit]
+object PokemonOwner {
+  case class Id(value: Int) extends AnyVal
 }
+#+END_SRC
 
-def transfer(from: PokemonOwner, to: PokemonOwner): Future[Unit]
+#+BEGIN_SRC scala
+class PokemonRepository {
+  def find(id: PokemonOwner.Id): Future[PokemonOwner]
+  def find(id: Pokemon.Id): Future[Pokemon]
+  def delete(id: Pokemon.Id, owner: PokemonOwner.Id)
+  def save(p: Pokemon, owner: PokemonOwner.Id): Future[Unit]
+}
+#+END_SRC
+
+#+BEGIN_SRC scala
+def transfer(from: PokemonOwner.Id,
+             to: PokemonOwner.Id)(
+             id: Pokemon.Id): Future[Unit] = for {
+  fromOwner <- repo.find(from) // --+
+  toOwner <- repo.find(to)     //   |=> Independent
+  pokemon <- repo.find(id)     // --+
+  _ <- delete(id, from)
+  _ <- save(pokemon, to)
+} yield {
+  log.info(
+    s"Transferred pokemon ${pokemon.name}: ${fromOwner.name} -> ${toOwner.name}")
+}
 #+END_SRC
 
 * Problems:
@@ -373,18 +439,13 @@ def transfer(from: PokemonOwner, to: PokemonOwner): Future[Unit]
 - Does ~transfer~ throw an exception?
 - What about ~find~ / ~save~ etc?
 - What *kind* of errors can occur?
+- (What happens if one occurs in different steps?)
+- Which errors should be handled vs escalated
+- Common thing for Java: one exception fits all
 
 * More Functional Way
 
 #+BEGIN_SRC scala
-case class Pokemon(id: Int, typ: Type)
-sealed trait Type extends Product with Serializable
-case object Fire extends Type
-case object Water extends Type
-case object Grass extends Type
-
-class PokemonOwner(name: String)
-
 class PokemonRepository {
   def find(id: Int, owner: PokemonOwner): Future[Xor[DriverException,Pokemon]]
   def delete(id: Int, owner: PokemonOwner): Future[Xor[DriverException,Unit]]
