@@ -50,6 +50,7 @@
 
 
 * Welcome at Scala User Group Düsseldorf:
+
 #+BEGIN_SRC elisp
 (play-sound-file-async "sounds/intro.mp3")
 (sit-for 5.5)
@@ -57,35 +58,42 @@
 (shell-command-to-string "figlet -f slant -w 70 -c -k \"Applying FP Patterns\"")
 #+END_SRC
 
-
 * Introduction (Why are we even here)
 
 - Functional Programming is getting more and more momentum
-- There exist many useful patterns from FP
-- Today: Two Patterns from FP
+- There are a lot of useful patterns in FP
+- Today: two patterns
 
-1) Monoids
-2) Functional Error Handling
-* But before we start some basic knowledge:
 
--> Who knows about
 
- -> free adjoint functors?
- -> star-autonomous categories?
- -> geometric morphisms?
+        1) Monoids
+          or: how to combine "stuff"
+
+
+        2) Functional Error Handling
+          or: catch'em all!
+
 
 * Functional Programming != scary
 
-Good! You don't need them anyway.
+Things you might hear from FP
 
+- monad homomorphisms
+- natural transformations
+- profunctors
 
-                             ¯\_(ツ)_/¯
+- like the well-known patterns of OO (GoF)
+- only the "language" comes from math
+
+But this is NOT related to FP in any way
 
 * What then is FP? (for _me_!)
 
-1) Composability
-2) Leverage the type system
-3) Referential Transparency (immutability, limit side effects, etc.)
+1) (real) composability
+
+2) getting help from the type system
+
+3) referential transparency
 
 * Some technicality before we start
 
@@ -121,14 +129,23 @@ This talk uses cats, but in theory any FP library works.
 
 OO is like DUPLO: /seems/ composable
 
-                            [[./pics/duplo.jpg]]
 
+
+   [[./pics/duplo3.jpeg]]    [[./pics/duplo2.jpeg]]    [[./pics/duplo.jpg]]
+
+                    (pictures from https://shop.lego.com)
 * Composability - FP
 
 FP is like LEGO: small parts that can be /reused/
 
-       [[./pics/lego.jpg]]
 
+
+
+   [[./pics/resize_car.png]][[./pics/resize_fruits.png]][[./pics/resize_lighthouse.png]][[./pics/resize_violin.png]][[./pics/resize_flight.png]]
+
+
+
+                    (pictures from https://shop.lego.com)
 * Combining stuff (Monoid)
 
 Can you spot a pattern here?
@@ -138,7 +155,6 @@ val add = (0       + 1      )  + 5
 val mul = (1       * 2      )  * 5
 val cat = (List() ++ List(1)) ++ List(2,3)
 #+END_SRC
-
 
 * Definition of Monoids
 
@@ -155,7 +171,6 @@ implicit class MonoidOps[A](val self: A) {
     M.combine(self,other)
 }
 #+END_SRC
-
 
 * Abstracting with Monoids
 
@@ -169,7 +184,6 @@ val mul = (empty2 |+| 2      ) |+| 5
 val mul = (empty3 |+| List(1)) |+| List(2,3)
 #+END_SRC
 
-
 * Definition of Monoids
 
 The Monoid type class:
@@ -185,7 +199,6 @@ implicit class MonoidOps[A](val self: A) {
     M.combine(self,other)
 }
 #+END_SRC
-
 
 * Monoid Rules
 
@@ -250,6 +263,20 @@ implicit def option[A:Monoid] = new Monoid[Option[A]] {
 }
 #+END_SRC
 
+#+RESULTS:
+#+begin_example
+<console>:7: error: not found: type Monoid
+       implicit def option[A:Monoid] = new Monoid[Option[A]] {
+                                           ^
+<console>:7: error: not found: type Monoid
+       implicit def option[A:Monoid] = new Monoid[Option[A]] {
+                             ^
+<console>:11: error: value +|+ is not a member of type parameter A
+ Note: implicit method option is not applicable here because it comes after the application point and it lacks an explicit result type
+           case (Some(xx),Some(yy)) => Some(xx +|+ yy)
+                                               ^
+#+end_example
+
 #+BEGIN_SRC scala
 val none: Option[Int] = None
 Option(2) +|+ Option(40)
@@ -259,6 +286,30 @@ Option(1) +|+ none
 none +|+ Option(42)
 none +|+ none
 #+END_SRC
+
+#+RESULTS:
+#+begin_example
+none: Option[Int] = None
+<console>:8: error: value +|+ is not a member of Option[Int]
+              Option(2) +|+ Option(40)
+                        ^
+<console>:8: error: value +|+ is not a member of Option[Double]
+              Option(8.0) +|+ Option(5.25)
+                          ^
+<console>:8: error: value +|+ is not a member of Option[List[Int]]
+              Option(List(1,2,3)) +|+ Option(List(0))
+                                  ^
+<console>:9: error: value +|+ is not a member of Option[Int]
+              Option(1) +|+ none
+                        ^
+<console>:9: error: value +|+ is not a member of Option[Int]
+              none +|+ Option(42)
+                   ^
+<console>:9: error: value +|+ is not a member of Option[Int]
+              none +|+ none
+                   ^
+#+end_example
+
 
 * Monoids everywhere
 
@@ -277,20 +328,16 @@ Also:
   - ~Map[A,B]~    if Monoid[B]
   - ~(A,B)~       if Monoid[A] and Monoid[B]
 
-* Functions for monoids
-
-- cats (and scalaz) also defines many other functions for monoids
-  - specialized ~fold~ with start and combine function
-  - Validated (error accumulation)
-  - and many more
-
-- at this point you might be thinking:
-
 * Monoids for the real world
 
+At this point you might be thinking:
+
 #+BEGIN_SRC sh :results raw
-echo "[[file:pics/skeptical.jpg]]"
+echo "                              [[file:pics/skeptical.jpg]]"
 #+END_SRC
+
+#+RESULTS:
+                              [[file:pics/skeptical.jpg]]
 
 
 * Apache Spark
@@ -298,14 +345,14 @@ echo "[[file:pics/skeptical.jpg]]"
 Task: calculate statistics with Apache Spark
 
   a) number of words
+
   b) word count per word
+
   c) average word length
+
   +) make it easy to extend
 
 Easy? Only do *one* traversal over the input
-
-(back to cats)
-
 
 * Apache Spark - Using Monoids
 
@@ -323,18 +370,21 @@ val averageWordLength = chars / words
 #+END_SRC
 
 #+BEGIN_EXAMPLE
-1) "FP in cats in düsseldorf"
+1) "Applying FP patterns in düsseldorf"
 
-2) List("FP","in","cats","in","düsseldorf")
+2) List("Applying","FP","patterns","in","düsseldorf")
 
-3) List((1,Map("FP"->1),2),(1,Map("in"->1),2),
-        (1,Map("cats"->1),4),(1,Map("in"->1),2), ...)
+3) List((1,Map("Applying"->1),8),
+        (1,Map("FP"->1),2),
+        (1,Map("patterns"->1),8),
+        (1,Map("in"->1),2),
+        ...)
 
 4) (5,Map("FP"->1,"in"->2,"cats"->1,...),17)
 #+END_EXAMPLE
 
 Remember the requirement: /easy/ extension!
-Let's also calculate maximum word length
+=> Let's also calculate maximum word length
 * Apache Spark - Extension: Max word length
 
 #+BEGIN_SRC scala
@@ -351,60 +401,61 @@ val (words,wordCount,chars,max) = data.fold(z)(_ |+| _)
 val averageWordLength = chars / words
 #+END_SRC
 
-* Exercise for later:
-
-1) define the max/min monoid
-2) define the option monoid
-3) hard: ignore stopwords ("a","an","the",...)
-
 * Apache Spark Section Done
-                   [[./pics/questions1.jpg]]
+
+
+                            [[./pics/resize_questions1.jpg]]
 
 * Part Two: Catch'em All
 
-
-
-
-                   [[./pics/pokemons.jpg]]
+    [[./pics/catchemall.png]]
 
 * Types of errors
 
 Typically, there are two types of errors:
 
-1) domain errors
-2) external errors
+1) domain errors                                               [[./pics/pikachu_fled_resize.png]]
 
-For 1) callers are expected to deal with them and should typically be
-able to perform mitigation
 
-For 2) often the only thing you can do is graceful degradation,
-you don't want to communicate each of them to callers
+2) external errors                                             [[./pics/missingno.jpg]]
 
 * Handling Errors in Java
 
 - Java:
+
   - unchecked exception
   - checked exceptions
+
 - Why?
+
   - checked exceptions communicate + compiler help
+
   - caller does not have to check return value
     - ~if (result == null) { ... }~
+
   - compiler help is good! (?)
+
   - but checked exceptions are broken (!)
 * Handling Errors
 
 - Scala:
+
   - *unchecked* exceptions as in Java
+
   - *no* checked exceptions
+
   - but: expressive type system
 
 * Functional Error Handling
 
 - traditional error handling from java:
   try/catch/finally, also supported in Scala
+
 - in FP, try to capture exceptions in the types
-- slightly better in standard Scala: Try and Either
-- but to really get the benefits, use cats/scalaz
+
+- Standard Scala: ~Try~ and ~Either~
+
+- but to get the real benefits, use cats/scalaz
 
 * Example: Pokémons
 
@@ -461,12 +512,18 @@ def transfer(from: PokemonOwner.Id,
 * Problems:
 
 - Does ~transfer~ throw an exception? (~find~? ~save~?)
+
 - What *kind* of errors can occur?
+
 - Has the error been handled?
+
 - Which errors should be handled vs escalated
+
 - Common thing for Java: one exception fits all
 
-=> What happens if one occurs in different steps?
+
+
+==> What happens when errors happen in each step?
 
 * What if
 
@@ -479,8 +536,11 @@ def transfer(from: PokemonOwner.Id,
 * The Functional Way
 
 - FP allows has to have our cake and it eat too
+
 - use a disjunction (sum-type) to model success/failure
+
 - use a (nested) ADT to represent errors
+
 - it is obvious what errors can appear and whether it was handled
 
 * The Error ADT
@@ -547,13 +607,35 @@ transfer(o1,o2)(p) map {
 }
 #+END_SRC
 
+#+RESULTS:
+#+begin_example
+<console>:7: error: not found: value PokemonOwner
+       val o1 = PokemonOwner.Id(1)
+                ^
+<console>:7: error: not found: value PokemonOwner
+       val o2 = PokemonOwner.Id(2)
+                ^
+<console>:7: error: not found: value Pokemon
+       val p = Pokemon.Id(3)
+               ^
+<console>:8: error: not found: value transfer
+transfer(o1,o2)(p) map {
+^
+#+end_example
+
 
 * Why not Either or Try
 
 - ~Either~ is currently not right-biased
+
 - ~Try~ is useless and not even a monad
-- ~Xor~ (cats) or ~\/~ (scalaz) is better
-- soon: right biased ~Either~ in Scala (replaces ~Xor~)
+
+- ~Xor~ (cats) or ~\/~ (scalaz):
+  - right-biased
+  - many convenience functions
+  - typeclass instances from the library
+
+- soon for cats: right biased ~Either~ in Scala (replaces ~Xor~)
 
 * The end
 
@@ -566,10 +648,10 @@ transfer(o1,o2)(p) map {
 
 
 * Questions
-#+BEGIN_SRC sh :results raw
-echo "[[file:pics/questions.png]]"
-#+END_SRC
 
+#+BEGIN_SRC shell
+imv pics/pokemon_hd.jpg
+#+END_SRC
 
 * Local words
 #  LocalWords:  adjoint functors monoids morphisms
